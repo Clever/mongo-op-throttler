@@ -41,7 +41,7 @@ func Apply(ops io.Reader, opsPerSecond int, host string) error {
 	for opScanner.Scan() {
 		var op operation
 		if err := json.Unmarshal(opScanner.Bytes(), &op); err != nil {
-			return err
+			return fmt.Errorf("Error parsing json: %s", err.Error())
 		}
 
 		millisElapsed := time.Now().Sub(start).Nanoseconds() / (1000 * 1000)
@@ -72,7 +72,7 @@ func applyOp(op operation, session *mgo.Session) error {
 	}
 
 	if !bson.IsObjectIdHex(op.ID) {
-		return fmt.Errorf("Invalid ID %s", op.ID)
+		return fmt.Errorf("Invalid ID: %s", op.ID)
 	}
 	id := bson.ObjectIdHex(op.ID)
 
@@ -94,9 +94,9 @@ func applyOp(op operation, session *mgo.Session) error {
 		return err
 	} else if op.Type == "update" {
 		return c.UpdateId(id, objBson)
-	} else if op.Type == "delete" {
+	} else if op.Type == "remove" {
 		return c.RemoveId(id)
 	} else {
-		return fmt.Errorf("Unknown type %s", op.Type)
+		return fmt.Errorf("Unknown type: %s", op.Type)
 	}
 }

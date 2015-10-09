@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,7 +43,6 @@ func createInsert(t *testing.T) []byte {
 }
 
 func TestApplySpeed(t *testing.T) {
-
 	db := setupDb(t)
 
 	buffer := bytes.NewBufferString("")
@@ -55,7 +55,7 @@ func TestApplySpeed(t *testing.T) {
 	assert.NoError(t, Apply(buffer, 5, "localhost"))
 	end := time.Now()
 	millisElapsed := end.Sub(start).Nanoseconds() / (1000 * 1000)
-	if millisElapsed < 1700 || millisElapsed > 2300 {
+	if millisElapsed < 1800 || millisElapsed > 2200 {
 		assert.Fail(t, fmt.Sprintf("Duration outside expected range %d", millisElapsed))
 	}
 
@@ -64,8 +64,59 @@ func TestApplySpeed(t *testing.T) {
 	assert.Equal(t, 10, count)
 }
 
-func TestApplyOpErrorCases(t *testing.T) {
+func TestInvalidJson(t *testing.T) {
+	buffer := bytes.NewBufferString("badJson")
+	err := Apply(buffer, 5, "localhost")
+	assert.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "Error parsing json"))
+}
 
+func TestMissingNamespace(t *testing.T) {
+	op := operation{
+		ID:          bson.NewObjectId().Hex(),
+		Type:        "remove",
+		Namespace:   "bad",
+		EncodedBson: "",
+	}
+	err := applyOp(op, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "Invalid namespace: bad", err.Error())
+}
+
+func TestInvalidObjectId(t *testing.T) {
+	op := operation{
+		ID:          "bad",
+		Type:        "insert",
+		Namespace:   "throttle.test",
+		EncodedBson: "",
+	}
+	err := applyOp(op, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "Invalid ID: bad", err.Error())
+}
+
+func TestInvalidType(t *testing.T) {
+	op := operation{
+		ID:          bson.NewObjectId().Hex(),
+		Type:        "badop",
+		Namespace:   "throttle.test",
+		EncodedBson: "",
+	}
+	err := applyOp(op, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "Unknown type: badop", err.Error())
+}
+
+func TestInvalidEncodedBson(t *testing.T) {
+	op := operation{
+		ID:          bson.NewObjectId().Hex(),
+		Type:        "insert",
+		Namespace:   "throttle.test",
+		EncodedBson: "",
+	}
+	err := applyOp(op, nil)
+	assert.Error(t, err)
+	assert.Equal(t, "Error unmarshaling bson Document is corrupted", err.Error())
 }
 
 func TestUpdate(t *testing.T) {
