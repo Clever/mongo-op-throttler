@@ -64,9 +64,7 @@ func Apply(ops io.Reader, opsPerSecond int, host string) error {
 // TODO: Add a nice comment!!!
 func applyOp(op operation, session *mgo.Session) error {
 
-	// Validate the input
 	splitNamespace := strings.SplitN(op.Namespace, ".", 2)
-	// TODO: Add a test for all these error cases...
 	if len(splitNamespace) != 2 {
 		return fmt.Errorf("Invalid namespace: %s", op.Namespace)
 	}
@@ -93,7 +91,13 @@ func applyOp(op operation, session *mgo.Session) error {
 		_, err := c.UpsertId(id, objBson)
 		return err
 	} else if op.Type == "update" {
-		return c.UpdateId(id, objBson)
+		err := c.UpdateId(id, objBson)
+		// TODO: Explain why we do this for idempotency of the whole
+		// process
+		if err == mgo.ErrNotFound {
+			return nil
+		}
+		return err
 	} else if op.Type == "remove" {
 		return c.RemoveId(id)
 	} else {

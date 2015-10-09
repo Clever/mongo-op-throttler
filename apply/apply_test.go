@@ -120,7 +120,41 @@ func TestInvalidEncodedBson(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	db := setupDb(t)
 
+	// Update a doc and check that it's changed
+	obj := bson.M{"_id": bson.NewObjectId(), "key": "value"}
+	assert.NoError(t, db.C("test").Insert(obj))
+
+	updatedObj := bson.M{"key": "value2"}
+	updateBytes, err := bson.Marshal(updatedObj)
+	assert.NoError(t, err)
+
+	op := operation{
+		ID:          obj["_id"].(bson.ObjectId).Hex(),
+		Type:        "update",
+		Namespace:   "throttle.test",
+		EncodedBson: base64.StdEncoding.EncodeToString(updateBytes),
+	}
+	assert.NoError(t, applyOp(op, db.Session))
+
+	var result bson.M
+	assert.NoError(t, db.C("test").Find(bson.M{}).One(&result))
+	assert.Equal(t, "value2", result["key"].(string))
+
+	// Try with the $set syntax
+	setUpdate := bson.M{"$set": bson.M{"key": "value3"}}
+	setBytes, err := bson.Marshal(setUpdate)
+	assert.NoError(t, err)
+	op.EncodedBson = base64.StdEncoding.EncodeToString(setBytes)
+
+	assert.NoError(t, applyOp(op, db.Session))
+	assert.NoError(t, db.C("test").Find(bson.M{}).One(&result))
+	assert.Equal(t, "value3", result["key"].(string))
+
+	// Updating a doc that doesn't exist doesn't fail
+	op.ID = bson.NewObjectId().Hex()
+	assert.NoError(t, applyOp(op, db.Session))
 }
 
 func TestInsert(t *testing.T) {
