@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -196,4 +198,23 @@ func TestRemove(t *testing.T) {
 	count, err := db.C("test").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
+}
+
+func TestTempFileFromPath(t *testing.T) {
+	f, err := ioutil.TempFile("/tmp", "throttle-test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(f.Name())
+
+	_, err = f.Write([]byte("test data"))
+	assert.NoError(t, err)
+
+	f2, err := tempFileFromPath(f.Name())
+	assert.NoError(t, err)
+	defer os.RemoveAll(f2.Name())
+
+	buffer := make([]byte, 100)
+	_, err = f2.Read(buffer)
+	assert.NoError(t, err)
+	// Test whether they're equal, trimming out of the extra stuff in the buffer
+	assert.Equal(t, "test data", strings.Trim(string(buffer), "\x00"))
 }
