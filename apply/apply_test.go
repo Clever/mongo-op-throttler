@@ -158,9 +158,41 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
+	db := setupDb(t)
 
+	id := bson.NewObjectId()
+	obj := bson.M{"_id": id, "key": "value"}
+	bytes, err := bson.Marshal(obj)
+	assert.NoError(t, err)
+
+	op := operation{
+		ID:          id.Hex(),
+		Type:        "insert",
+		Namespace:   "throttle.test",
+		EncodedBson: base64.StdEncoding.EncodeToString(bytes),
+	}
+	assert.NoError(t, applyOp(op, db.Session))
+
+	var result bson.M
+	assert.NoError(t, db.C("test").Find(bson.M{"_id": id}).One(&result))
+	assert.Equal(t, "value", result["key"].(string))
 }
 
 func TestRemove(t *testing.T) {
+	db := setupDb(t)
 
+	id := bson.NewObjectId()
+	assert.NoError(t, db.C("test").Insert(bson.M{"_id": id, "key": "value"}))
+
+	op := operation{
+		ID:          id.Hex(),
+		Type:        "remove",
+		Namespace:   "throttle.test",
+		EncodedBson: "",
+	}
+	assert.NoError(t, applyOp(op, db.Session))
+
+	count, err := db.C("test").Count()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
 }
