@@ -19,11 +19,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// Some way to parse...
-// Some kind of typing???
+// operation is the definition of the mongo command to run
 type operation struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
+	ID string `json:"id"`
+	// Valid types are: 'insert', 'update' or 'remove'
+	Type string `json:"type"`
+	// The namespace as defined by mongo. For example, "clever.events"
 	Namespace   string `json:"namespace"`
 	EncodedBson string `json:"base64bson"`
 }
@@ -40,45 +41,52 @@ func main() {
 	}
 	defer session.Close()
 
-	f, err := tempFileFromPath(*path)
+	filename, err := tempFileFromPath(*path)
 	if err != nil {
 		log.Fatalf("Error creating temp file from path %s", err)
 	}
-	defer os.RemoveAll(f.Name())
+	f, err := os.Open(filename)
+	if err != nil {
+		log.Fatalf("Error opening file back up %s", err)
+	}
+	defer os.RemoveAll(filename)
 
 	if err = applyOps(f, *opsPerSecond, session); err != nil {
 		log.Fatalf("Error applying ops %s", err)
 	}
 }
 
-// TODO: Add a nice comment about why we do this whole dance
-// Note that it needs to be removed and closed when done???
-func tempFileFromPath(path string) (*os.File, error) {
+// tempFileFromPath takes in an arbitrary path and uses pathio to write it to a
+// temporary file and passes back the location of that temporary file. We use it
+// because we've had problems in the past where we stream data from s3 and the stream
+// randomly breaks in the middle of processing, so we want to download the full
+// file before doing any other processing.
+func tempFileFromPath(path string) (string, error) {
 	f, err := ioutil.TempFile("/tmp", "throttler")
 	if err != nil {
-		return nil, fmt.Errorf("Error creating temporary file %s", err)
+		return "", fmt.Errorf("Error creating temporary file %s", err)
 	}
+	defer f.Close()
 
 	reader, err := pathio.Reader(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading from the path %s", err)
+		return "", fmt.Errorf("Error reading from the path %s", err)
 	}
 	defer reader.Close()
 
 	if _, err = io.Copy(f, reader); err != nil {
-		return nil, fmt.Errorf("Error copying the data from s3 %s", err)
+		return "", fmt.Errorf("Error copying the data from s3 %s", err)
 	}
-	f.Close()
-
-	return os.Open(f.Name())
+	return f.Name(), nil
 }
 
-// TODO: Note that this is indempotent (this controls how we handle errors / upserts)
-// TODO: Pass in the session??? Probably...
+// applyOps applies all the operations in the io.Reader to the specified
+// database session at the specified speed.
+// Note that applyOps is idempotent so it can be run repeatedly. It does
+// this by doing things like converting inserts into upserts. For more details
+// so the applyOp code.
 func applyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 	opScanner := bufio.NewScanner(r)
-
-	// TODO: Explain why we don't use bulk
 
 	start := time.Now()
 	numOps := 0
@@ -106,7 +114,14 @@ func applyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 	return opScanner.Err()
 }
 
-// TODO: Add a nice comment!!!
+// applyOp applies a single operation to a database. Note that we apply a single
+// op at a time instead of using the mgo bulk library. There are two motivations for that:
+// 1. The bulk library doesn't support remove yet, so we would have to special case that
+// 2. The bulk operation only operates on a single collection at a time so we would have
+// to break it apart.
+// Given these limitations, it seemed like just applying them serially was meaningfully
+// simpler, and in testing we could get close to 1K ops per second applying them serially,
+// so we decided that was good enough for now and we could revisit later if we needed more speed.
 func applyOp(op operation, session *mgo.Session) error {
 
 	splitNamespace := strings.SplitN(op.Namespace, ".", 2)
@@ -137,14 +152,16 @@ func applyOp(op operation, session *mgo.Session) error {
 		return err
 	} else if op.Type == "update" {
 		err := c.UpdateId(id, objBson)
-		// TODO: Explain why we do this for idempotency of the whole
-		// process
+		// Don't error on mgo not found because we want to support idempotency
+		// and the document could have been removed in a previous run
 		if err == mgo.ErrNotFound {
 			return nil
 		}
 		return err
 	} else if op.Type == "remove" {
 		err := c.RemoveId(id)
+		// Don't error on mgo not found because we want to support idempotency
+		// and the document could have been removed in a previous run
 		if err == mgo.ErrNotFound {
 			return nil
 		}

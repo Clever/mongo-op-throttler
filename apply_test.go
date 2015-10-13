@@ -208,9 +208,12 @@ func TestTempFileFromPath(t *testing.T) {
 	_, err = f.Write([]byte("test data"))
 	assert.NoError(t, err)
 
-	f2, err := tempFileFromPath(f.Name())
+	file2name, err := tempFileFromPath(f.Name())
 	assert.NoError(t, err)
-	defer os.RemoveAll(f2.Name())
+	defer os.RemoveAll(file2name)
+
+	f2, err := os.Open(file2name)
+	assert.NoError(t, err)
 
 	buffer := make([]byte, 100)
 	_, err = f2.Read(buffer)
