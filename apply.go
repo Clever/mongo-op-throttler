@@ -4,10 +4,16 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/Clever/pathio"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -16,24 +22,63 @@ import (
 // Some way to parse...
 // Some kind of typing???
 type operation struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`
-	Namespace string `json:"namespace"`
-	// TODO: Add some more details about what this could be. Tests for things like $set
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Namespace   string `json:"namespace"`
 	EncodedBson string `json:"base64bson"`
+}
+
+func main() {
+	mongoURL := flag.String("mongoURL", "localhost", "The mongo database to run the operations against")
+	path := flag.String("path", "", "The path to the json operations to replay")
+	opsPerSecond := flag.Int("speed", 1, "The number of operations to apply per second")
+	flag.Parse()
+
+	session, err := mgo.Dial(*mongoURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to Mongo %s", err)
+	}
+	defer session.Close()
+
+	f, err := tempFileFromPath(*path)
+	if err != nil {
+		log.Fatalf("Error creating temp file from path %s", err)
+	}
+	defer os.RemoveAll(f.Name())
+
+	if err = applyOps(f, *opsPerSecond, session); err != nil {
+		log.Fatalf("Error applying ops %s", err)
+	}
+}
+
+// TODO: Add a nice comment about why we do this whole dance
+// Note that it needs to be removed and closed when done???
+func tempFileFromPath(path string) (*os.File, error) {
+	f, err := ioutil.TempFile("/tmp", "throttler")
+	if err != nil {
+		return nil, fmt.Errorf("Error creating temporary file %s", err)
+	}
+
+	reader, err := pathio.Reader(path)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading from the path %s", err)
+	}
+	defer reader.Close()
+
+	if _, err = io.Copy(f, reader); err != nil {
+		return nil, fmt.Errorf("Error copying the data from s3 %s", err)
+	}
+	f.Close()
+
+	return os.Open(f.Name())
 }
 
 // TODO: Note that this is indempotent (this controls how we handle errors / upserts)
 // TODO: Pass in the session??? Probably...
-func Apply(ops io.Reader, opsPerSecond int, host string) error {
-	opScanner := bufio.NewScanner(ops)
+func applyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
+	opScanner := bufio.NewScanner(r)
 
 	// TODO: Explain why we don't use bulk
-
-	session, err := mgo.Dial(host)
-	if err != nil {
-		return err
-	}
 
 	start := time.Now()
 	numOps := 0
@@ -99,7 +144,11 @@ func applyOp(op operation, session *mgo.Session) error {
 		}
 		return err
 	} else if op.Type == "remove" {
-		return c.RemoveId(id)
+		err := c.RemoveId(id)
+		if err == mgo.ErrNotFound {
+			return nil
+		}
+		return err
 	} else {
 		return fmt.Errorf("Unknown type: %s", op.Type)
 	}

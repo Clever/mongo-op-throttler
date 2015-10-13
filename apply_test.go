@@ -23,7 +23,6 @@ func setupDb(t *testing.T) *mgo.Database {
 }
 
 func createInsert(t *testing.T) []byte {
-
 	doc := bson.M{"key": "value"}
 	bytes, err := bson.Marshal(doc)
 	assert.NoError(t, err)
@@ -52,7 +51,7 @@ func TestApplySpeed(t *testing.T) {
 	}
 
 	start := time.Now()
-	assert.NoError(t, Apply(buffer, 5, "localhost"))
+	assert.NoError(t, applyOps(buffer, 5, db.Session))
 	end := time.Now()
 	millisElapsed := end.Sub(start).Nanoseconds() / (1000 * 1000)
 	if millisElapsed < 1800 || millisElapsed > 2200 {
@@ -65,8 +64,10 @@ func TestApplySpeed(t *testing.T) {
 }
 
 func TestInvalidJson(t *testing.T) {
+	db := setupDb(t)
+
 	buffer := bytes.NewBufferString("badJson")
-	err := Apply(buffer, 5, "localhost")
+	err := applyOps(buffer, 5, db.Session)
 	assert.Error(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "Error parsing json"))
 }
