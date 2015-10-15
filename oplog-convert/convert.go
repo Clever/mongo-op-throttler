@@ -1,12 +1,17 @@
 package convert
 
 import (
-	throttle "github.com/Clever/mongo-op-throttler"
+	"encoding/base64"
+	"fmt"
+	"strings"
+
+	"github.com/Clever/mongo-op-throttler/apply"
 	"gopkg.in/mgo.v2/bson"
 )
+
 // TODO: Add a nice comment!!!
 // Note that this can return empty... if we don't understand the op
-func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
+func convertOp(oplogEntry bson.M) (*apply.Operation, error) {
 	// Note that this has only been tested for the Mongo 2.4 format
 
 	// Based on the logic from the source code:
@@ -31,7 +36,7 @@ func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
 		return nil, fmt.Errorf("Missing object field")
 	}
 
-	op := Operation{Namespace: namespace}
+	op := apply.Operation{Namespace: namespace}
 
 	switch opType {
 
@@ -41,11 +46,14 @@ func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
 		if !ok {
 			return nil, fmt.Errorf("Insert missing 'o._id' field")
 		}
-		op.Object = opObject
+		var err error
+		if op.EncodedBson, err = base64EncodeBson(opObject); err != nil {
+			return nil, err
+		}
 
 	case "u":
 		op.Type = "update"
-		op.ID, ok = op["o2"].(map[string]interface{})["_id"].(string)
+		op.ID, ok = oplogEntry["o2"].(map[string]interface{})["_id"].(string)
 		if !ok {
 			return nil, fmt.Errorf("Update missing o._id field")
 		}
@@ -59,11 +67,14 @@ func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
 				return nil, fmt.Errorf("Invalid key %s in update object", key)
 			}
 		}
-		op.Object = opObject
+		var err error
+		if op.EncodedBson, err = base64EncodeBson(opObject); err != nil {
+			return nil, err
+		}
 
 		// Since this field is referenced in the Mongo applyCmd source code, but I haven't been able to
 		// set it in any of our oplog entries, let's just sanity check that it isn't set.
-		if _, ok = op["b"]; ok {
+		if _, ok = oplogEntry["b"]; ok {
 			return nil, fmt.Errorf("Unknown field 'b' in update")
 		}
 
@@ -75,7 +86,7 @@ func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
 		}
 
 		// We see this on all our deletes so let's keep making sure it's there
-		if b, ok := op["b"].(bool); !ok || !b {
+		if b, ok := oplogEntry["b"].(bool); !ok || !b {
 			return nil, fmt.Errorf("'b' field not set to true for delete")
 		}
 
@@ -87,4 +98,11 @@ func convertOp(oplogEntry bson.M) (*throttle.Operation, error) {
 
 	return &op, nil
 }
+
+func base64EncodeBson(obj bson.M) (string, error) {
+	bytes, err := bson.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(bytes), nil
 }
