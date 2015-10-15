@@ -1,12 +1,10 @@
-package main
+package apply
 
 import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +29,7 @@ func createInsert(t *testing.T) []byte {
 
 	encoded := base64.StdEncoding.EncodeToString(bytes)
 
-	op := operation{
+	op := Operation{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -53,7 +51,7 @@ func TestApplySpeed(t *testing.T) {
 	}
 
 	start := time.Now()
-	assert.NoError(t, applyOps(buffer, 5, db.Session))
+	assert.NoError(t, ApplyOps(buffer, 5, db.Session))
 	end := time.Now()
 	millisElapsed := end.Sub(start).Nanoseconds() / (1000 * 1000)
 	if millisElapsed < 1800 || millisElapsed > 2200 {
@@ -69,13 +67,13 @@ func TestInvalidJson(t *testing.T) {
 	db := setupDb(t)
 
 	buffer := bytes.NewBufferString("badJson")
-	err := applyOps(buffer, 5, db.Session)
+	err := ApplyOps(buffer, 5, db.Session)
 	assert.Error(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "Error parsing json"))
 }
 
 func TestMissingNamespace(t *testing.T) {
-	op := operation{
+	op := Operation{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "remove",
 		Namespace:   "bad",
@@ -87,7 +85,7 @@ func TestMissingNamespace(t *testing.T) {
 }
 
 func TestInvalidObjectId(t *testing.T) {
-	op := operation{
+	op := Operation{
 		ID:          "bad",
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -99,7 +97,7 @@ func TestInvalidObjectId(t *testing.T) {
 }
 
 func TestInvalidType(t *testing.T) {
-	op := operation{
+	op := Operation{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "badop",
 		Namespace:   "throttle.test",
@@ -111,7 +109,7 @@ func TestInvalidType(t *testing.T) {
 }
 
 func TestInvalidEncodedBson(t *testing.T) {
-	op := operation{
+	op := Operation{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -133,7 +131,7 @@ func TestUpdate(t *testing.T) {
 	updateBytes, err := bson.Marshal(updatedObj)
 	assert.NoError(t, err)
 
-	op := operation{
+	op := Operation{
 		ID:          obj["_id"].(bson.ObjectId).Hex(),
 		Type:        "update",
 		Namespace:   "throttle.test",
@@ -168,7 +166,7 @@ func TestInsert(t *testing.T) {
 	bytes, err := bson.Marshal(obj)
 	assert.NoError(t, err)
 
-	op := operation{
+	op := Operation{
 		ID:          id.Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -187,7 +185,7 @@ func TestRemove(t *testing.T) {
 	id := bson.NewObjectId()
 	assert.NoError(t, db.C("test").Insert(bson.M{"_id": id, "key": "value"}))
 
-	op := operation{
+	op := Operation{
 		ID:          id.Hex(),
 		Type:        "remove",
 		Namespace:   "throttle.test",
@@ -198,26 +196,4 @@ func TestRemove(t *testing.T) {
 	count, err := db.C("test").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
-}
-
-func TestTempFileFromPath(t *testing.T) {
-	f, err := ioutil.TempFile("/tmp", "throttle-test")
-	assert.NoError(t, err)
-	defer os.RemoveAll(f.Name())
-
-	_, err = f.Write([]byte("test data"))
-	assert.NoError(t, err)
-
-	file2name, err := tempFileFromPath(f.Name())
-	assert.NoError(t, err)
-	defer os.RemoveAll(file2name)
-
-	f2, err := os.Open(file2name)
-	assert.NoError(t, err)
-
-	buffer := make([]byte, 100)
-	_, err = f2.Read(buffer)
-	assert.NoError(t, err)
-	// Test whether they're equal, trimming out of the extra stuff in the buffer
-	assert.Equal(t, "test data", strings.Trim(string(buffer), "\x00"))
 }
