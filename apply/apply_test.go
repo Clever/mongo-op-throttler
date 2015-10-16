@@ -89,18 +89,6 @@ func TestInvalidType(t *testing.T) {
 	assert.Equal(t, "Unknown type: badop", err.Error())
 }
 
-func TestInvalidEncodedBson(t *testing.T) {
-	op := operation.Op{
-		ID:          bson.NewObjectId().Hex(),
-		Type:        "insert",
-		Namespace:   "throttle.test",
-		EncodedBson: "",
-	}
-	err := applyOp(op, nil)
-	assert.Error(t, err)
-	assert.Equal(t, "Error unmarshaling bson Document is corrupted", err.Error())
-}
-
 func TestUpdate(t *testing.T) {
 	db := setupDb(t)
 
