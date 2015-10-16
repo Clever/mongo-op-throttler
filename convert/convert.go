@@ -11,7 +11,7 @@ import (
 
 // TODO: Add a nice comment!!!
 // Note that this can return empty... if we don't understand the op
-func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
+func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	// Note that this has only been tested for the Mongo 2.4 format
 
 	// Based on the logic from the source code:
@@ -25,6 +25,8 @@ func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	if !ok {
 		return nil, fmt.Errorf("Missing namespace")
 	}
+
+	fmt.Printf("Oplog Entry %#v\n", oplogEntry)
 
 	// Ignore changes to the system namespace. These are things like system.indexes
 	if strings.HasPrefix(namespace, "system.") {
@@ -42,10 +44,12 @@ func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	case "i":
 		op.Type = "insert"
-		op.ID, ok = opObject["_id"].(string)
+		// TODO: Support other kinds of IDS (strings???)
+		id, ok := opObject["_id"].(bson.ObjectId)
 		if !ok {
-			return nil, fmt.Errorf("Insert missing 'o._id' field")
+			return nil, fmt.Errorf("Insert missing or non-objectId 'o._id' field")
 		}
+		op.ID = id.Hex()
 		var err error
 		if op.EncodedBson, err = base64EncodeBson(opObject); err != nil {
 			return nil, err
@@ -53,10 +57,11 @@ func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	case "u":
 		op.Type = "update"
-		op.ID, ok = oplogEntry["o2"].(bson.M)["_id"].(string)
+		id, ok := oplogEntry["o2"].(bson.M)["_id"].(bson.ObjectId)
 		if !ok {
 			return nil, fmt.Errorf("Update missing o._id field")
 		}
+		op.ID = id.Hex()
 
 		// Check to make sure the object only has $ fields we understand
 		// Note that other Mongo update commands (afaict) are converted to either direct
@@ -80,10 +85,11 @@ func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	case "d":
 		op.Type = "remove"
-		op.ID, ok = opObject["_id"].(string)
+		id, ok := opObject["_id"].(bson.ObjectId)
 		if !ok {
 			return nil, fmt.Errorf("Delete missing '_id' field")
 		}
+		op.ID = id.Hex()
 
 		// We see this on all our deletes so let's keep making sure it's there
 		if b, ok := oplogEntry["b"].(bool); !ok || !b {
