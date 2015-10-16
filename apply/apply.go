@@ -32,12 +32,6 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())
 		}
 
-		// TODO: Add a comment about this dance...
-		op, err := convert.OplogEntryToOp(bsonOp)
-		if err != nil {
-			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())
-		}
-
 		millisElapsed := time.Now().Sub(start).Nanoseconds() / (1000 * 1000)
 		expectedMillisElapsed := (float64(numOps) / float64(opsPerSecond)) * 1000
 
