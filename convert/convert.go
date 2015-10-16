@@ -8,9 +8,19 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+func OplogBytesToOp(raw []byte) (*operation.Op, error) {
+	var bsonOp bson.M
+	if err := bson.Unmarshal(raw, &bsonOp); err != nil {
+		return nil, fmt.Errorf("Error parsing json: %s", err.Error())
+	}
+
+	// TODO: Add a comment about this dance...
+	return oplogEntryToOp(bsonOp)
+}
+
 // TODO: Add a nice comment!!!
 // Note that this can return empty... if we don't understand the op
-func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
+func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	// Note that this has only been tested for the Mongo 2.4 format
 
 	// Based on the logic from the source code:

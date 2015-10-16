@@ -7,6 +7,23 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+func TestConvertBsonBytes(t *testing.T) {
+	doc := bson.M{
+		"op": "i",
+		"ns": "throttle.test",
+		"o": bson.M{
+			"_id": bson.NewObjectId(),
+			"val": "55d57fd49e8a1b0d007f73b4",
+		},
+	}
+	bytes, err := bson.Marshal(doc)
+	assert.NoError(t, err)
+
+	op, err := OplogBytesToOp(bytes)
+	assert.NoError(t, err)
+	assert.Equal(t, "insert", op.Type)
+}
+
 func TestConvertInsertOp(t *testing.T) {
 	doc := bson.M{
 		"v":  2,
@@ -18,7 +35,7 @@ func TestConvertInsertOp(t *testing.T) {
 		},
 	}
 
-	op, err := OplogEntryToOp(doc)
+	op, err := oplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "insert", op.Type)
 	assert.Equal(t, "teacherId", op.ID)
@@ -37,7 +54,7 @@ func TestConvertRemoveOp(t *testing.T) {
 		},
 	}
 
-	op, err := OplogEntryToOp(doc)
+	op, err := oplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "remove", op.Type)
 	assert.Equal(t, "studentId", op.ID)
@@ -61,7 +78,7 @@ func TestConvertUpdateOp(t *testing.T) {
 		},
 	}
 
-	op, err := OplogEntryToOp(doc)
+	op, err := oplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "update", op.Type)
 	assert.Equal(t, "sectionId", op.ID)
@@ -76,7 +93,7 @@ func TestUnknownOp(t *testing.T) {
 		"o":  bson.M{"applyOps": []interface{}{}},
 	}
 
-	_, err := OplogEntryToOp(doc)
+	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, "Unknown op type c", err.Error())
 }
@@ -97,7 +114,7 @@ func TestInvalidUpdateOperation(t *testing.T) {
 		},
 	}
 
-	_, err := OplogEntryToOp(doc)
+	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, "Invalid key $addToSet in update object", err.Error())
 }
@@ -108,7 +125,7 @@ func TestHandleObjectIdField(t *testing.T) {
 
 func TestMissingFields(t *testing.T) {
 	doc := bson.M{}
-	_, err := OplogEntryToOp(doc)
+	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
 }
 
@@ -122,7 +139,7 @@ func TestBFieldForRemove(t *testing.T) {
 		},
 	}
 
-	_, err := OplogEntryToOp(doc)
+	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, err.Error(), "'b' field not set to true for delete")
 }
