@@ -11,7 +11,7 @@ import (
 
 // TODO: Add a nice comment!!!
 // Note that this can return empty... if we don't understand the op
-func convertOp(oplogEntry bson.M) (*apply.Operation, error) {
+func ConvertOplogEntryToOp(oplogEntry bson.M) (*apply.Operation, error) {
 	// Note that this has only been tested for the Mongo 2.4 format
 
 	// Based on the logic from the source code:
@@ -31,7 +31,7 @@ func convertOp(oplogEntry bson.M) (*apply.Operation, error) {
 		return nil, nil
 	}
 
-	opObject, ok := oplogEntry["o"].(map[string]interface{})
+	opObject, ok := oplogEntry["o"].(bson.M)
 	if !ok {
 		return nil, fmt.Errorf("Missing object field")
 	}
@@ -53,7 +53,7 @@ func convertOp(oplogEntry bson.M) (*apply.Operation, error) {
 
 	case "u":
 		op.Type = "update"
-		op.ID, ok = oplogEntry["o2"].(map[string]interface{})["_id"].(string)
+		op.ID, ok = oplogEntry["o2"].(bson.M)["_id"].(string)
 		if !ok {
 			return nil, fmt.Errorf("Update missing o._id field")
 		}
