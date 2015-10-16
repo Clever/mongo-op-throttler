@@ -2,7 +2,6 @@ package apply
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
@@ -69,10 +68,9 @@ func TestInvalidJson(t *testing.T) {
 
 func TestMissingNamespace(t *testing.T) {
 	op := operation.Op{
-		ID:          bson.NewObjectId().Hex(),
-		Type:        "remove",
-		Namespace:   "bad",
-		EncodedBson: "",
+		ID:        bson.NewObjectId().Hex(),
+		Type:      "remove",
+		Namespace: "bad",
 	}
 	err := applyOp(op, nil)
 	assert.Error(t, err)
@@ -81,10 +79,9 @@ func TestMissingNamespace(t *testing.T) {
 
 func TestInvalidObjectId(t *testing.T) {
 	op := operation.Op{
-		ID:          "bad",
-		Type:        "insert",
-		Namespace:   "throttle.test",
-		EncodedBson: "",
+		ID:        "bad",
+		Type:      "insert",
+		Namespace: "throttle.test",
 	}
 	err := applyOp(op, nil)
 	assert.Error(t, err)
@@ -93,26 +90,13 @@ func TestInvalidObjectId(t *testing.T) {
 
 func TestInvalidType(t *testing.T) {
 	op := operation.Op{
-		ID:          bson.NewObjectId().Hex(),
-		Type:        "badop",
-		Namespace:   "throttle.test",
-		EncodedBson: "",
+		ID:        bson.NewObjectId().Hex(),
+		Type:      "badop",
+		Namespace: "throttle.test",
 	}
 	err := applyOp(op, nil)
 	assert.Error(t, err)
 	assert.Equal(t, "Unknown type: badop", err.Error())
-}
-
-func TestInvalidEncodedBson(t *testing.T) {
-	op := operation.Op{
-		ID:          bson.NewObjectId().Hex(),
-		Type:        "insert",
-		Namespace:   "throttle.test",
-		EncodedBson: "",
-	}
-	err := applyOp(op, nil)
-	assert.Error(t, err)
-	assert.Equal(t, "Error unmarshaling bson Document is corrupted", err.Error())
 }
 
 func TestUpdate(t *testing.T) {
@@ -123,14 +107,12 @@ func TestUpdate(t *testing.T) {
 	assert.NoError(t, db.C("test").Insert(obj))
 
 	updatedObj := bson.M{"key": "value2"}
-	updateBytes, err := bson.Marshal(updatedObj)
-	assert.NoError(t, err)
 
 	op := operation.Op{
-		ID:          obj["_id"].(bson.ObjectId).Hex(),
-		Type:        "update",
-		Namespace:   "throttle.test",
-		EncodedBson: base64.StdEncoding.EncodeToString(updateBytes),
+		ID:        obj["_id"].(bson.ObjectId).Hex(),
+		Type:      "update",
+		Namespace: "throttle.test",
+		Obj:       updatedObj,
 	}
 	assert.NoError(t, applyOp(op, db.Session))
 
@@ -139,10 +121,7 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(t, "value2", result["key"].(string))
 
 	// Try with the $set syntax
-	setUpdate := bson.M{"$set": bson.M{"key": "value3"}}
-	setBytes, err := bson.Marshal(setUpdate)
-	assert.NoError(t, err)
-	op.EncodedBson = base64.StdEncoding.EncodeToString(setBytes)
+	op.Obj = bson.M{"$set": bson.M{"key": "value3"}}
 
 	assert.NoError(t, applyOp(op, db.Session))
 	assert.NoError(t, db.C("test").Find(bson.M{}).One(&result))
@@ -158,14 +137,12 @@ func TestInsert(t *testing.T) {
 
 	id := bson.NewObjectId()
 	obj := bson.M{"_id": id, "key": "value"}
-	bytes, err := bson.Marshal(obj)
-	assert.NoError(t, err)
 
 	op := operation.Op{
-		ID:          id.Hex(),
-		Type:        "insert",
-		Namespace:   "throttle.test",
-		EncodedBson: base64.StdEncoding.EncodeToString(bytes),
+		ID:        id.Hex(),
+		Type:      "insert",
+		Namespace: "throttle.test",
+		Obj:       obj,
 	}
 	assert.NoError(t, applyOp(op, db.Session))
 
@@ -181,10 +158,9 @@ func TestRemove(t *testing.T) {
 	assert.NoError(t, db.C("test").Insert(bson.M{"_id": id, "key": "value"}))
 
 	op := operation.Op{
-		ID:          id.Hex(),
-		Type:        "remove",
-		Namespace:   "throttle.test",
-		EncodedBson: "",
+		ID:        id.Hex(),
+		Type:      "remove",
+		Namespace: "throttle.test",
 	}
 	assert.NoError(t, applyOp(op, db.Session))
 

@@ -2,7 +2,6 @@ package apply
 
 import (
 	"bufio"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
@@ -75,24 +74,13 @@ func applyOp(op operation.Op, session *mgo.Session) error {
 	}
 	id := bson.ObjectIdHex(op.ID)
 
-	var objBson bson.M
-	bsonBytes, err := base64.StdEncoding.DecodeString(op.EncodedBson)
-	if err != nil {
-		return err
-	}
-	if op.Type == "insert" || op.Type == "update" {
-		if err := bson.Unmarshal(bsonBytes, &objBson); err != nil {
-			return fmt.Errorf("Error unmarshaling bson %s", err.Error())
-		}
-	}
-
 	c := session.DB(splitNamespace[0]).C(splitNamespace[1])
 
 	if op.Type == "insert" {
-		_, err := c.UpsertId(id, objBson)
+		_, err := c.UpsertId(id, op.Obj)
 		return err
 	} else if op.Type == "update" {
-		err := c.UpdateId(id, objBson)
+		err := c.UpdateId(id, op.Obj)
 		// Don't error on mgo not found because we want to support idempotency
 		// and the document could have been removed in a previous run
 		if err == mgo.ErrNotFound {
