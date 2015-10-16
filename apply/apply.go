@@ -1,12 +1,13 @@
 package apply
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	// Use custom scanner with higher length limitation
+	"github.com/Clever/go-utils/scanner"
 	"github.com/Clever/mongo-op-throttler/convert"
 	"github.com/Clever/mongo-op-throttler/operation"
 
@@ -20,19 +21,13 @@ import (
 // this by doing things like converting inserts into upserts. For more details
 // so the applyOp code.
 func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
-	opScanner := bufio.NewScanner(r)
+	opScanner := scanner.NewScanner(r)
 
 	start := time.Now()
 	numOps := 0
 
 	for opScanner.Scan() {
-		var bsonOp bson.M
-		if err := bson.Unmarshal(opScanner.Bytes(), &bsonOp); err != nil {
-			return fmt.Errorf("Error parsing json: %s", err.Error())
-		}
-
-		// TODO: Add a comment about this dance...
-		op, err := convert.OplogEntryToOp(bsonOp)
+		op, err := convert.OplogBytesToOp(opScanner.Bytes())
 		if err != nil {
 			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())
 		}

@@ -3,7 +3,6 @@ package apply
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -55,15 +54,6 @@ func TestApplySpeed(t *testing.T) {
 	count, err := db.C("test").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, 10, count)
-}
-
-func TestInvalidJson(t *testing.T) {
-	db := setupDb(t)
-
-	buffer := bytes.NewBufferString("badJson")
-	err := ApplyOps(buffer, 5, db.Session)
-	assert.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "Error parsing json"))
 }
 
 func TestMissingNamespace(t *testing.T) {
