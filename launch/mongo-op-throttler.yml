@@ -1,0 +1,9 @@
+run:
+  type: docker
+env:
+- GEARMAN_HOST
+- GEARMAN_URL
+resources:
+  cpu: 1.0
+dependencies:
+- gearmand
