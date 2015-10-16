@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -26,8 +25,6 @@ func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 		return nil, fmt.Errorf("Missing namespace")
 	}
 
-	fmt.Printf("Oplog Entry %#v\n", oplogEntry)
-
 	// Ignore changes to the system namespace. These are things like system.indexes
 	if strings.HasPrefix(namespace, "system.") {
 		return nil, nil
@@ -44,24 +41,30 @@ func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	case "i":
 		op.Type = "insert"
-		// TODO: Support other kinds of IDS (strings???)
-		id, ok := opObject["_id"].(bson.ObjectId)
+		id, ok := opObject["_id"]
 		if !ok {
-			return nil, fmt.Errorf("Insert missing or non-objectId 'o._id' field")
+			return nil, fmt.Errorf("Insert missing or 'o._id' field")
 		}
-		op.ID = id.Hex()
+
 		var err error
-		if op.EncodedBson, err = base64EncodeBson(opObject); err != nil {
+		op.ID, err = convertIdToString(id)
+		if err != nil {
 			return nil, err
 		}
+		op.Obj = opObject
 
 	case "u":
 		op.Type = "update"
-		id, ok := oplogEntry["o2"].(bson.M)["_id"].(bson.ObjectId)
+		id, ok := oplogEntry["o2"].(bson.M)["_id"]
 		if !ok {
 			return nil, fmt.Errorf("Update missing o._id field")
 		}
-		op.ID = id.Hex()
+
+		var err error
+		op.ID, err = convertIdToString(id)
+		if err != nil {
+			return nil, err
+		}
 
 		// Check to make sure the object only has $ fields we understand
 		// Note that other Mongo update commands (afaict) are converted to either direct
@@ -72,10 +75,7 @@ func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 				return nil, fmt.Errorf("Invalid key %s in update object", key)
 			}
 		}
-		var err error
-		if op.EncodedBson, err = base64EncodeBson(opObject); err != nil {
-			return nil, err
-		}
+		op.Obj = opObject
 
 		// Since this field is referenced in the Mongo applyCmd source code, but I haven't been able to
 		// set it in any of our oplog entries, let's just sanity check that it isn't set.
@@ -85,11 +85,16 @@ func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	case "d":
 		op.Type = "remove"
-		id, ok := opObject["_id"].(bson.ObjectId)
+		id, ok := opObject["_id"]
 		if !ok {
 			return nil, fmt.Errorf("Delete missing '_id' field")
 		}
-		op.ID = id.Hex()
+
+		var err error
+		op.ID, err = convertIdToString(id)
+		if err != nil {
+			return nil, err
+		}
 
 		// We see this on all our deletes so let's keep making sure it's there
 		if b, ok := oplogEntry["b"].(bool); !ok || !b {
@@ -105,10 +110,12 @@ func OplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	return &op, nil
 }
 
-func base64EncodeBson(obj bson.M) (string, error) {
-	bytes, err := bson.Marshal(obj)
-	if err != nil {
-		return "", err
+func convertIdToString(id interface{}) (string, error) {
+	if str, ok := id.(string); ok {
+		return str, nil
 	}
-	return base64.StdEncoding.EncodeToString(bytes), nil
+	if objId, ok := id.(bson.ObjectId); ok {
+		return objId.Hex(), nil
+	}
+	return "", fmt.Errorf("Unknown id field %s", id)
 }

@@ -102,6 +102,10 @@ func TestInvalidUpdateOperation(t *testing.T) {
 	assert.Equal(t, "Invalid key $addToSet in update object", err.Error())
 }
 
+func TestHandleObjectIdField(t *testing.T) {
+	// TODO
+}
+
 func TestMissingFields(t *testing.T) {
 	doc := bson.M{}
 	_, err := OplogEntryToOp(doc)
