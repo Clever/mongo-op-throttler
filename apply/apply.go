@@ -9,19 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Clever/mongo-op-throttler/operation"
+
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
-
-// operation is the definition of the mongo command to run
-type Operation struct {
-	ID string `json:"id"`
-	// Valid types are: 'insert', 'update' or 'remove'
-	Type string `json:"type"`
-	// The namespace as defined by mongo. For example, "clever.events"
-	Namespace   string `json:"namespace"`
-	EncodedBson string `json:"base64bson"`
-}
 
 // applyOps applies all the operations in the io.Reader to the specified
 // database session at the specified speed.
@@ -35,7 +27,7 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 	numOps := 0
 
 	for opScanner.Scan() {
-		var op Operation
+		var op operation.Op
 		if err := json.Unmarshal(opScanner.Bytes(), &op); err != nil {
 			return fmt.Errorf("Error parsing json: %s", err.Error())
 		}
@@ -65,7 +57,7 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 // Given these limitations, it seemed like just applying them serially was meaningfully
 // simpler, and in testing we could get close to 1K ops per second applying them serially,
 // so we decided that was good enough for now and we could revisit later if we needed more speed.
-func applyOp(op Operation, session *mgo.Session) error {
+func applyOp(op operation.Op, session *mgo.Session) error {
 
 	splitNamespace := strings.SplitN(op.Namespace, ".", 2)
 	if len(splitNamespace) != 2 {

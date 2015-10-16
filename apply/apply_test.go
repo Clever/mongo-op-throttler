@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Clever/mongo-op-throttler/operation"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -29,7 +30,7 @@ func createInsert(t *testing.T) []byte {
 
 	encoded := base64.StdEncoding.EncodeToString(bytes)
 
-	op := Operation{
+	op := operation.Op{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -73,7 +74,7 @@ func TestInvalidJson(t *testing.T) {
 }
 
 func TestMissingNamespace(t *testing.T) {
-	op := Operation{
+	op := operation.Op{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "remove",
 		Namespace:   "bad",
@@ -85,7 +86,7 @@ func TestMissingNamespace(t *testing.T) {
 }
 
 func TestInvalidObjectId(t *testing.T) {
-	op := Operation{
+	op := operation.Op{
 		ID:          "bad",
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -97,7 +98,7 @@ func TestInvalidObjectId(t *testing.T) {
 }
 
 func TestInvalidType(t *testing.T) {
-	op := Operation{
+	op := operation.Op{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "badop",
 		Namespace:   "throttle.test",
@@ -109,7 +110,7 @@ func TestInvalidType(t *testing.T) {
 }
 
 func TestInvalidEncodedBson(t *testing.T) {
-	op := Operation{
+	op := operation.Op{
 		ID:          bson.NewObjectId().Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -131,7 +132,7 @@ func TestUpdate(t *testing.T) {
 	updateBytes, err := bson.Marshal(updatedObj)
 	assert.NoError(t, err)
 
-	op := Operation{
+	op := operation.Op{
 		ID:          obj["_id"].(bson.ObjectId).Hex(),
 		Type:        "update",
 		Namespace:   "throttle.test",
@@ -166,7 +167,7 @@ func TestInsert(t *testing.T) {
 	bytes, err := bson.Marshal(obj)
 	assert.NoError(t, err)
 
-	op := Operation{
+	op := operation.Op{
 		ID:          id.Hex(),
 		Type:        "insert",
 		Namespace:   "throttle.test",
@@ -185,7 +186,7 @@ func TestRemove(t *testing.T) {
 	id := bson.NewObjectId()
 	assert.NoError(t, db.C("test").Insert(bson.M{"_id": id, "key": "value"}))
 
-	op := Operation{
+	op := operation.Op{
 		ID:          id.Hex(),
 		Type:        "remove",
 		Namespace:   "throttle.test",
