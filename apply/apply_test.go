@@ -3,7 +3,6 @@ package apply
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -24,20 +23,15 @@ func setupDb(t *testing.T) *mgo.Database {
 }
 
 func createInsert(t *testing.T) []byte {
-	doc := bson.M{"key": "value"}
-	bytes, err := bson.Marshal(doc)
-	assert.NoError(t, err)
-
-	encoded := base64.StdEncoding.EncodeToString(bytes)
-
-	op := operation.Op{
-		ID:          bson.NewObjectId().Hex(),
-		Type:        "insert",
-		Namespace:   "throttle.test",
-		EncodedBson: encoded,
+	doc := bson.M{
+		"op": "i",
+		"ns": "throttle.test",
+		"o": bson.M{
+			"_id": bson.NewObjectId(),
+			"val": "55d57fd49e8a1b0d007f73b4",
+		},
 	}
-
-	bytes, err = json.Marshal(op)
+	bytes, err := bson.Marshal(doc)
 	assert.NoError(t, err)
 	return bytes
 }

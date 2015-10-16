@@ -3,12 +3,12 @@ package apply
 import (
 	"bufio"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"time"
 
+	"github.com/Clever/mongo-op-throttler/convert"
 	"github.com/Clever/mongo-op-throttler/operation"
 
 	"gopkg.in/mgo.v2"
@@ -27,9 +27,15 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 	numOps := 0
 
 	for opScanner.Scan() {
-		var op operation.Op
-		if err := json.Unmarshal(opScanner.Bytes(), &op); err != nil {
+		var bsonOp bson.M
+		if err := bson.Unmarshal(opScanner.Bytes(), &bsonOp); err != nil {
 			return fmt.Errorf("Error parsing json: %s", err.Error())
+		}
+
+		// TODO: Add a comment about this dance...
+		op, err := convert.OplogEntryToOp(bsonOp)
+		if err != nil {
+			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())
 		}
 
 		millisElapsed := time.Now().Sub(start).Nanoseconds() / (1000 * 1000)
@@ -40,7 +46,7 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 			time.Sleep(time.Duration(timeToWait) * time.Millisecond)
 		}
 
-		if err := applyOp(op, session); err != nil {
+		if err := applyOp(*op, session); err != nil {
 			return err
 		}
 		numOps++
