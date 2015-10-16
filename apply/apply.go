@@ -58,7 +58,6 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 // simpler, and in testing we could get close to 1K ops per second applying them serially,
 // so we decided that was good enough for now and we could revisit later if we needed more speed.
 func applyOp(op operation.Op, session *mgo.Session) error {
-
 	splitNamespace := strings.SplitN(op.Namespace, ".", 2)
 	if len(splitNamespace) != 2 {
 		return fmt.Errorf("Invalid namespace: %s", op.Namespace)
@@ -71,10 +70,12 @@ func applyOp(op operation.Op, session *mgo.Session) error {
 
 	c := session.DB(splitNamespace[0]).C(splitNamespace[1])
 
-	if op.Type == "insert" {
+	switch op.Type {
+	case "insert":
 		_, err := c.UpsertId(id, op.Obj)
 		return err
-	} else if op.Type == "update" {
+
+	case "update":
 		err := c.UpdateId(id, op.Obj)
 		// Don't error on mgo not found because we want to support idempotency
 		// and the document could have been removed in a previous run
@@ -82,7 +83,8 @@ func applyOp(op operation.Op, session *mgo.Session) error {
 			return nil
 		}
 		return err
-	} else if op.Type == "remove" {
+
+	case "remove":
 		err := c.RemoveId(id)
 		// Don't error on mgo not found because we want to support idempotency
 		// and the document could have been removed in a previous run
@@ -90,7 +92,8 @@ func applyOp(op operation.Op, session *mgo.Session) error {
 			return nil
 		}
 		return err
-	} else {
+
+	default:
 		return fmt.Errorf("Unknown type: %s", op.Type)
 	}
 }

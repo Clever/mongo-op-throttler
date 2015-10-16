@@ -35,6 +35,7 @@ func main() {
 		log.Fatalf("Error opening file back up %s", err)
 	}
 	defer os.RemoveAll(filename)
+	defer f.Close()
 
 	if err = apply.ApplyOps(f, *opsPerSecond, session); err != nil {
 		log.Fatalf("Error applying ops %s", err)
