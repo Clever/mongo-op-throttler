@@ -25,14 +25,15 @@ func TestConvertBsonBytes(t *testing.T) {
 }
 
 func TestConvertInsertOp(t *testing.T) {
+	obj := bson.M{
+		"_id": "teacherId",
+		"val": "55d57fd49e8a1b0d007f73b4",
+	}
 	doc := bson.M{
 		"v":  2,
 		"op": "i",
 		"ns": "archive.archive.teachers",
-		"o": bson.M{
-			"_id": "teacherId",
-			"val": "55d57fd49e8a1b0d007f73b4",
-		},
+		"o":  obj,
 	}
 
 	op, err := oplogEntryToOp(doc)
@@ -40,7 +41,7 @@ func TestConvertInsertOp(t *testing.T) {
 	assert.Equal(t, "insert", op.Type)
 	assert.Equal(t, "teacherId", op.ID)
 	assert.Equal(t, "archive.archive.teachers", op.Namespace)
-	// TODO: The actual object??? Here and elsewhere...
+	assert.Equal(t, obj, op.Obj)
 }
 
 func TestConvertRemoveOp(t *testing.T) {
@@ -62,27 +63,29 @@ func TestConvertRemoveOp(t *testing.T) {
 }
 
 func TestConvertUpdateOp(t *testing.T) {
+	obj := bson.M{
+		"$set": bson.M{
+			"_permissions": []string{
+				"532a5db5c69b239f0d000026",
+			},
+		},
+	}
 	doc := bson.M{
 		"v":  2,
 		"op": "u",
-		"ns": "clever.sections",
+		"ns": "test.sections",
 		"o2": bson.M{
 			"_id": "sectionId",
 		},
-		"o": bson.M{
-			"$set": bson.M{
-				"_permissions": []string{
-					"532a5db5c69b239f0d000026",
-				},
-			},
-		},
+		"o": obj,
 	}
 
 	op, err := oplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "update", op.Type)
 	assert.Equal(t, "sectionId", op.ID)
-	assert.Equal(t, "clever.sections", op.Namespace)
+	assert.Equal(t, "test.sections", op.Namespace)
+	assert.Equal(t, obj, op.Obj)
 }
 
 func TestUnknownOp(t *testing.T) {
@@ -101,7 +104,7 @@ func TestUnknownOp(t *testing.T) {
 func TestInvalidUpdateOperation(t *testing.T) {
 	doc := bson.M{
 		"op": "u",
-		"ns": "clever.sections",
+		"ns": "test.sections",
 		"o2": bson.M{
 			"_id": "sectionId",
 		},
@@ -120,7 +123,20 @@ func TestInvalidUpdateOperation(t *testing.T) {
 }
 
 func TestHandleObjectIdField(t *testing.T) {
-	// TODO
+	id := bson.NewObjectId()
+	doc := bson.M{
+		"v":  2,
+		"op": "d",
+		"ns": "test.students",
+		"b":  true,
+		"o": bson.M{
+			"_id": id,
+		},
+	}
+
+	op, err := oplogEntryToOp(doc)
+	assert.NoError(t, err)
+	assert.Equal(t, id.Hex(), op.ID)
 }
 
 func TestMissingFields(t *testing.T) {
