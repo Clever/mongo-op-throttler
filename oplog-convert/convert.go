@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Clever/mongo-op-throttler/apply"
+	"github.com/Clever/mongo-op-throttler/operation"
 	"gopkg.in/mgo.v2/bson"
 )
 
 // TODO: Add a nice comment!!!
 // Note that this can return empty... if we don't understand the op
-func ConvertOplogEntryToOp(oplogEntry bson.M) (*apply.Operation, error) {
+func ConvertOplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	// Note that this has only been tested for the Mongo 2.4 format
 
 	// Based on the logic from the source code:
@@ -36,7 +36,7 @@ func ConvertOplogEntryToOp(oplogEntry bson.M) (*apply.Operation, error) {
 		return nil, fmt.Errorf("Missing object field")
 	}
 
-	op := apply.Operation{Namespace: namespace}
+	op := operation.Op{Namespace: namespace}
 
 	switch opType {
 
