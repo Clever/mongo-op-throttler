@@ -18,7 +18,7 @@ func TestConvertInsertOp(t *testing.T) {
 		},
 	}
 
-	op, err := ConvertOplogEntryToOp(doc)
+	op, err := OplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "insert", op.Type)
 	assert.Equal(t, "teacherId", op.ID)
@@ -37,7 +37,7 @@ func TestConvertRemoveOp(t *testing.T) {
 		},
 	}
 
-	op, err := ConvertOplogEntryToOp(doc)
+	op, err := OplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "remove", op.Type)
 	assert.Equal(t, "studentId", op.ID)
@@ -61,7 +61,7 @@ func TestConvertUpdateOp(t *testing.T) {
 		},
 	}
 
-	op, err := ConvertOplogEntryToOp(doc)
+	op, err := OplogEntryToOp(doc)
 	assert.NoError(t, err)
 	assert.Equal(t, "update", op.Type)
 	assert.Equal(t, "sectionId", op.ID)
@@ -76,7 +76,7 @@ func TestUnknownOp(t *testing.T) {
 		"o":  bson.M{"applyOps": []interface{}{}},
 	}
 
-	_, err := ConvertOplogEntryToOp(doc)
+	_, err := OplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, "Unknown op type c", err.Error())
 }
@@ -97,14 +97,14 @@ func TestInvalidUpdateOperation(t *testing.T) {
 		},
 	}
 
-	_, err := ConvertOplogEntryToOp(doc)
+	_, err := OplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, "Invalid key $addToSet in update object", err.Error())
 }
 
 func TestMissingFields(t *testing.T) {
 	doc := bson.M{}
-	_, err := ConvertOplogEntryToOp(doc)
+	_, err := OplogEntryToOp(doc)
 	assert.Error(t, err)
 }
 
@@ -118,7 +118,7 @@ func TestBFieldForRemove(t *testing.T) {
 		},
 	}
 
-	_, err := ConvertOplogEntryToOp(doc)
+	_, err := OplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, err.Error(), "'b' field not set to true for delete")
 }

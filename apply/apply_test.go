@@ -28,7 +28,6 @@ func createInsert(t *testing.T) []byte {
 			"_id": bson.NewObjectId(),
 			"val": "55d57fd49e8a1b0d007f73b4",
 		},
-
 	}
 	bytes, err := bson.Marshal(doc)
 	assert.NoError(t, err)
