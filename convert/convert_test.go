@@ -13,7 +13,7 @@ func TestConvertBsonBytes(t *testing.T) {
 		"ns": "throttle.test",
 		"o": bson.M{
 			"_id": bson.NewObjectId(),
-			"val": "55d57fd49e8a1b0d007f73b4",
+			"val": "value",
 		},
 	}
 	bytes, err := bson.Marshal(doc)
@@ -27,7 +27,7 @@ func TestConvertBsonBytes(t *testing.T) {
 func TestConvertInsertOp(t *testing.T) {
 	obj := bson.M{
 		"_id": "teacherId",
-		"val": "55d57fd49e8a1b0d007f73b4",
+		"val": "value",
 	}
 	doc := bson.M{
 		"v":  2,
@@ -66,7 +66,7 @@ func TestConvertUpdateOp(t *testing.T) {
 	obj := bson.M{
 		"$set": bson.M{
 			"_permissions": []string{
-				"532a5db5c69b239f0d000026",
+				bson.NewObjectId().Hex(),
 			},
 		},
 	}
@@ -111,7 +111,7 @@ func TestInvalidUpdateOperation(t *testing.T) {
 		"o": bson.M{
 			"$addToSet": bson.M{
 				"_permissions": []string{
-					"532a5db5c69b239f0d000026",
+					bson.NewObjectId().Hex(),
 				},
 			},
 		},
