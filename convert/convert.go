@@ -32,7 +32,7 @@ func OplogBytesToOp(raw []byte) (*operation.Op, error) {
 // "ts" : The timestampe of the entry
 // "h" :
 // "v" : The version of the oplog
-// "op": "i", "d", "u" as detailed here:
+// "op": "i", "d", "u", ... as detailed here:
 //   https://github.com/mongodb/mongo/blob/801d87f5c8d66d5f5a462c5e0daae67e6b848976/src/mongo/db/oplog.cpp#L147-L162
 // "ns" : The namespace (for example, "clever.sections")
 // "o" : The object to be insert, the update command, or the document to be removed
@@ -78,7 +78,8 @@ func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	case "d":
 		return convertToRemove(namespace, obj, oplogEntry)
 	default:
-		// It's theoretically possibly that is also 'c' or 'n', but we don't support them so let's error out
+		// It's theoretically possibly that is also 'c', 'n', or 'db', but we don't support them so
+		// let's error out.
 		return nil, fmt.Errorf("Unknown op type %s", opType)
 	}
 }
@@ -152,12 +153,16 @@ func convertToRemove(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	return &op, nil
 }
 
+// convertIdToString converts the id field to a string. In Mongo the _id field can be anything as
+// long as its unique. For now we just support strings and bson.ObjectIds. We can add more support
+// if it becomes necessary.
 func convertIdToString(id interface{}) (string, error) {
-	if str, ok := id.(string); ok {
-		return str, nil
+	switch t := id.(type) {
+	case string:
+		return t, nil
+	case bson.ObjectId:
+		return t.Hex(), nil
+	default:
+		return "", fmt.Errorf("Unknown id field %s", id)
 	}
-	if objId, ok := id.(bson.ObjectId); ok {
-		return objId.Hex(), nil
-	}
-	return "", fmt.Errorf("Unknown id field %s", id)
 }
