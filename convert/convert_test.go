@@ -10,6 +10,7 @@ import (
 func TestConvertBsonBytes(t *testing.T) {
 	doc := bson.M{
 		"op": "i",
+		"v":  2,
 		"ns": "throttle.test",
 		"o": bson.M{
 			"_id": bson.NewObjectId(),
@@ -103,6 +104,7 @@ func TestUnknownOp(t *testing.T) {
 
 func TestInvalidUpdateOperation(t *testing.T) {
 	doc := bson.M{
+		"v":  2,
 		"op": "u",
 		"ns": "test.sections",
 		"o2": bson.M{
@@ -147,6 +149,7 @@ func TestMissingFields(t *testing.T) {
 
 func TestBFieldForRemove(t *testing.T) {
 	doc := bson.M{
+		"v":  2,
 		"op": "d",
 		"ns": "archive.archive.students",
 		"b":  false,
@@ -158,4 +161,23 @@ func TestBFieldForRemove(t *testing.T) {
 	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
 	assert.Equal(t, err.Error(), "'b' field not set to true for delete")
+}
+
+func TestVersionMustBe2(t *testing.T) {
+	doc := bson.M{
+		"op": "d",
+		"ns": "archive.archive.students",
+		"o": bson.M{
+			"_id": "studentId",
+		},
+	}
+
+	_, err := oplogEntryToOp(doc)
+	assert.Error(t, err)
+	assert.Equal(t, "Missing version", err.Error())
+
+	doc["v"] = 3
+	_, err = oplogEntryToOp(doc)
+	assert.Error(t, err)
+	assert.Equal(t, "Convert only supports version 2, got 3", err.Error())
 }
