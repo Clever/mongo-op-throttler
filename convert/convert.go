@@ -24,11 +24,33 @@ func OplogBytesToOp(raw []byte) (*operation.Op, error) {
 }
 
 // oplogEntryToOp converts from bson.M to operation.Op
+// Note that this has only been tested for the Mongo 2.4 format
+// Based on the logic from the source code:
+// https://github.com/mongodb/mongo/blob/v2.4/src/mongo/db/oplog.cpp#L791
+//
+// oplog entries have the following format:
+// "ts" : The timestampe of the entry
+// "h" :
+// "v" : The version of the oplog
+// "op": "i", "d", "u" as detailed here:
+//   https://github.com/mongodb/mongo/blob/801d87f5c8d66d5f5a462c5e0daae67e6b848976/src/mongo/db/oplog.cpp#L147-L162
+// "ns" : The namespace (for example, "clever.sections")
+// "o" : The object to be insert, the update command, or the document to be removed
+// "o2" : Only applies
+// "b" : Means "justOne" for removes, and "upsert" on updates. "justOne" is always set for removes for
+//   reasons described below. Upsert doesn't seem to be set (AFACT) on updates, again the details are
+//   described below.
+// There are a few fields that don't apply to inserts, updates, or removes (the only ops we handle)
+//
+// How oplog entries are created:
+// If the user does an insert then Mongo will create an "op" : "i" entry in the oplog
+// If the user does an upsert, if the document is already in the database Mongo will create an "op" : "u" entry.
+//   Otherwise it will create an "op" : "i" oplog entry.
+// If the user does an update then Mongo will create an oplog entry for every document actually updated
+// If the user does a remove then Mongo will create one "op" : "d" entry for each document actually removed
+//   and since each oplog entry only represents one op, "b" will be set to "justOne"
 func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
-	// Note that this has only been tested for the Mongo 2.4 format
 
-	// Based on the logic from the source code:
-	// https://github.com/mongodb/mongo/blob/v2.4/src/mongo/db/oplog.cpp#L791
 	opType, ok := oplogEntry["op"].(string)
 	if !ok {
 		return nil, fmt.Errorf("Missing op type")
@@ -101,8 +123,8 @@ func convertToUpdate(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	}
 	op.Obj = obj
 
-	// Since this field is referenced in the Mongo applyCmd source code, but I haven't been able to
-	// set it in any of our oplog entries, let's just sanity check that it isn't set.
+	// Technically cmd.applyOp supports "upserts" on updates ("b" -> "upsert"), but AFAICT
+	// they never come from oplogs. See comment for oplogEntryToOp for details.
 	if _, ok = oplogEntry["b"]; ok {
 		return nil, fmt.Errorf("Unknown field 'b' in update")
 	}
@@ -122,7 +144,8 @@ func convertToRemove(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 		return nil, err
 	}
 
-	// We see this on all our deletes so let's keep making sure it's there
+	// "b" stands for "justOne" on deletes. It is always true for oplogs for reasons detailed
+	// in the oplogEntryToOp comments.
 	if b, ok := oplogEntry["b"].(bool); !ok || !b {
 		return nil, fmt.Errorf("'b' field not set to true for delete")
 	}
