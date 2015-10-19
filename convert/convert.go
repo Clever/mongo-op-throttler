@@ -50,6 +50,14 @@ func OplogBytesToOp(raw []byte) (*operation.Op, error) {
 // If the user does a remove then Mongo will create one "op" : "d" entry for each document actually removed
 //   and since each oplog entry only represents one op, "b" will be set to "justOne"
 func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
+	v, ok := oplogEntry["v"].(int)
+	if !ok {
+		return nil, fmt.Errorf("Missing version")
+	}
+	// For now we only support oplogs with a version 2
+	if v != 2 {
+		return nil, fmt.Errorf("Convert only supports version 2, got %d", v)
+	}
 
 	opType, ok := oplogEntry["op"].(string)
 	if !ok {
