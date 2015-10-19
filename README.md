@@ -17,12 +17,6 @@ flag          | default      | description
 
 
 ## Development
-You can run locally with:
-```
-make
-go run main.go --port 6000
-```
-
 You can run the tests with:
 ```bash
 make test
