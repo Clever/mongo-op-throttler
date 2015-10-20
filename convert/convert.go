@@ -96,7 +96,11 @@ func convertToInsert(namespace string, obj bson.M) (*operation.Op, error) {
 	op := operation.Op{Namespace: namespace, Type: "insert"}
 	id, ok := obj["_id"]
 	if !ok {
-		return nil, fmt.Errorf("Insert missing or 'o._id' field")
+		// This is valid for indexes, so let's see if the key field exists, and if so assume it's an index
+		if _, ok := obj["key"]; ok {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("Insert missing or 'o._id' field %#v\n", obj)
 	}
 
 	var err error

@@ -32,6 +32,10 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 		if err != nil {
 			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())
 		}
+		// It is possible for an op to be a no-op, but not an error. For example an index creation
+		if op == nil {
+			continue
+		}
 
 		millisElapsed := time.Now().Sub(start).Nanoseconds() / (1000 * 1000)
 		expectedMillisElapsed := (float64(numOps) / float64(opsPerSecond)) * 1000
