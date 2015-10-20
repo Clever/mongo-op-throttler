@@ -22,6 +22,7 @@ func setupDb(t *testing.T) *mgo.Database {
 
 func createInsert(t *testing.T) []byte {
 	doc := bson.M{
+		"v":  2,
 		"op": "i",
 		"ns": "throttle.test",
 		"o": bson.M{
@@ -40,7 +41,6 @@ func TestApplySpeed(t *testing.T) {
 	buffer := bytes.NewBufferString("")
 	for i := 0; i < 10; i++ {
 		buffer.Write(createInsert(t))
-		buffer.WriteRune('\n')
 	}
 
 	start := time.Now()
