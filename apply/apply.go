@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	// Use custom scanner with higher length limitation
-	"github.com/Clever/go-utils/scanner"
 	"github.com/Clever/mongo-op-throttler/convert"
 	"github.com/Clever/mongo-op-throttler/operation"
+	// Use custom scanner with higher length limitation
+	bsonScanner "github.com/Clever/oplog-replay/bson"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -23,12 +23,13 @@ import (
 // so the applyOp code.
 func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 	log.Printf("Beginning to replay")
-	opScanner := scanner.NewScanner(r)
+	opScanner := bsonScanner.New(r)
 
 	start := time.Now()
 	numOps := 0
 
 	for opScanner.Scan() {
+
 		op, err := convert.OplogBytesToOp(opScanner.Bytes())
 		if err != nil {
 			return fmt.Errorf("Error interpreting oplog entry %s", err.Error())

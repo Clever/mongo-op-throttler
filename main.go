@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/CLever/mongo-op-throttler/apply"
+	"github.com/Clever/mongo-op-throttler/apply"
 	"github.com/Clever/pathio"
 
 	"gopkg.in/mgo.v2"
