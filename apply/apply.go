@@ -3,6 +3,7 @@ package apply
 import (
 	"fmt"
 	"io"
+	"log"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 // this by doing things like converting inserts into upserts. For more details
 // so the applyOp code.
 func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
+	log.Printf("Beginning to replay")
 	opScanner := scanner.NewScanner(r)
 
 	start := time.Now()
@@ -44,6 +46,10 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 			return err
 		}
 		numOps++
+
+		if numOps%1000 == 0 {
+			log.Printf("Processed %d ops", numOps)
+		}
 	}
 
 	return opScanner.Err()
