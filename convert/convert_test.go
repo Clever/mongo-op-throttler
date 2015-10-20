@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,7 +122,7 @@ func TestInvalidUpdateOperation(t *testing.T) {
 
 	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
-	assert.Equal(t, "Invalid key $addToSet in update object", err.Error())
+	assert.True(t, strings.Contains(err.Error(), "Invalid key $addToSet in update object"))
 }
 
 func TestHandleObjectIdField(t *testing.T) {
@@ -160,7 +161,7 @@ func TestBFieldForRemove(t *testing.T) {
 
 	_, err := oplogEntryToOp(doc)
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "'b' field not set to true for delete")
+	assert.True(t, strings.Contains(err.Error(), "'b' field not set to true for delete"))
 }
 
 func TestVersionMustBe2(t *testing.T) {
@@ -179,5 +180,5 @@ func TestVersionMustBe2(t *testing.T) {
 	doc["v"] = 3
 	_, err = oplogEntryToOp(doc)
 	assert.Error(t, err)
-	assert.Equal(t, "Convert only supports version 2, got 3", err.Error())
+	assert.True(t, strings.Contains(err.Error(), "Convert only supports version 2, got 3"))
 }

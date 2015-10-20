@@ -56,16 +56,16 @@ func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 	}
 	// For now we only support oplogs with a version 2
 	if v != 2 {
-		return nil, fmt.Errorf("Convert only supports version 2, got %d", v)
+		return nil, fmt.Errorf("Convert only supports version 2, got %d in %#v\n", v, oplogEntry)
 	}
 
 	opType, ok := oplogEntry["op"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Missing op type")
+		return nil, fmt.Errorf("Missing op type %#v\n", oplogEntry)
 	}
 	namespace, ok := oplogEntry["ns"].(string)
 	if !ok {
-		return nil, fmt.Errorf("Missing namespace")
+		return nil, fmt.Errorf("Missing namespace %#v\n", oplogEntry)
 	}
 
 	// Ignore changes to the system namespace. These are things like system.indexes
@@ -75,7 +75,7 @@ func oplogEntryToOp(oplogEntry bson.M) (*operation.Op, error) {
 
 	obj, ok := oplogEntry["o"].(bson.M)
 	if !ok {
-		return nil, fmt.Errorf("Missing object field")
+		return nil, fmt.Errorf("Missing object field %#v\n", oplogEntry)
 	}
 
 	switch opType {
@@ -116,7 +116,7 @@ func convertToUpdate(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	op := operation.Op{Namespace: namespace, Type: "update"}
 	id, ok := oplogEntry["o2"].(bson.M)["_id"]
 	if !ok {
-		return nil, fmt.Errorf("Update missing o._id field")
+		return nil, fmt.Errorf("Update missing o._id field %#v\n", oplogEntry)
 	}
 
 	var err error
@@ -131,7 +131,7 @@ func convertToUpdate(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	// becoomes {"$set" : {"key.1" : "value"}}
 	for key := range obj {
 		if strings.Contains(key, "$") && key != "$set" && key != "$unset" {
-			return nil, fmt.Errorf("Invalid key %s in update object", key)
+			return nil, fmt.Errorf("Invalid key %s in update object %#v\n", key, oplogEntry)
 		}
 	}
 	op.Obj = obj
@@ -139,7 +139,7 @@ func convertToUpdate(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	// Technically cmd.applyOp supports "upserts" on updates ("b" -> "upsert"), but AFAICT
 	// they never come from oplogs. See comment for oplogEntryToOp for details.
 	if _, ok = oplogEntry["b"]; ok {
-		return nil, fmt.Errorf("Unknown field 'b' in update")
+		return nil, fmt.Errorf("Unknown field 'b' in update %#v\n", oplogEntry)
 	}
 	return &op, nil
 }
@@ -148,7 +148,7 @@ func convertToRemove(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	op := operation.Op{Namespace: namespace, Type: "remove"}
 	id, ok := obj["_id"]
 	if !ok {
-		return nil, fmt.Errorf("Delete missing '_id' field")
+		return nil, fmt.Errorf("Delete missing '_id' field %#v\n", obj)
 	}
 
 	var err error
@@ -160,7 +160,7 @@ func convertToRemove(namespace string, obj, oplogEntry bson.M) (*operation.Op, e
 	// "b" stands for "justOne" on deletes. It is always true for oplogs for reasons detailed
 	// in the oplogEntryToOp comments.
 	if b, ok := oplogEntry["b"].(bool); !ok || !b {
-		return nil, fmt.Errorf("'b' field not set to true for delete")
+		return nil, fmt.Errorf("'b' field not set to true for delete %#v\n", oplogEntry)
 	}
 	return &op, nil
 }
