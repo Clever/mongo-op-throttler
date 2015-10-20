@@ -41,7 +41,6 @@ func TestApplySpeed(t *testing.T) {
 	buffer := bytes.NewBufferString("")
 	for i := 0; i < 10; i++ {
 		buffer.Write(createInsert(t))
-		buffer.WriteRune('\n')
 	}
 
 	start := time.Now()

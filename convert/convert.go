@@ -17,7 +17,7 @@ import (
 func OplogBytesToOp(raw []byte) (*operation.Op, error) {
 	var bsonOp bson.M
 	if err := bson.Unmarshal(raw, &bsonOp); err != nil {
-		return nil, fmt.Errorf("Error parsing json: %s", err.Error())
+		return nil, fmt.Errorf("Error parsing bson: %s", err.Error())
 	}
 
 	return oplogEntryToOp(bsonOp)
