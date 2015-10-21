@@ -27,7 +27,7 @@ func createInsert(t *testing.T) []byte {
 		"ns": "throttle.test",
 		"o": bson.M{
 			"_id": bson.NewObjectId(),
-			"val": "55d57fd49e8a1b0d007f73b4",
+			"val": bson.NewObjectId(),
 		},
 	}
 	bytes, err := bson.Marshal(doc)
@@ -54,6 +54,80 @@ func TestApplySpeed(t *testing.T) {
 	count, err := db.C("test").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, 10, count)
+}
+
+func TestApplyOps(t *testing.T) {
+	// Test the full flow, end-to-end
+	db := setupDb(t)
+
+	toRemoveId := bson.NewObjectId()
+	toUpdateId := bson.NewObjectId()
+	toKeepTheSameId := bson.NewObjectId()
+	toInsertId := bson.NewObjectId()
+
+	assert.NoError(t, db.C("test").Insert(bson.M{"_id": toRemoveId, "key": "remove"}))
+	assert.NoError(t, db.C("test").Insert(bson.M{"_id": toUpdateId, "key": "update"}))
+	assert.NoError(t, db.C("test").Insert(bson.M{"_id": toKeepTheSameId, "key": "same"}))
+
+	buffer := bytes.NewBufferString("")
+	insertOplog := bson.M{
+		"v":  2,
+		"op": "i",
+		"ns": "throttle.test",
+		"o": bson.M{
+			"_id": toInsertId,
+			"key": "insert",
+		},
+	}
+	bytes, err := bson.Marshal(insertOplog)
+	assert.NoError(t, err)
+	buffer.Write(bytes)
+
+	updateOplog := bson.M{
+		"v":  2,
+		"op": "u",
+		"ns": "throttle.test",
+		"o": bson.M{
+			"$set": bson.M{"key": "update2"},
+		},
+		"o2": bson.M{
+			"_id": toUpdateId,
+		},
+	}
+	bytes, err = bson.Marshal(updateOplog)
+	assert.NoError(t, err)
+	buffer.Write(bytes)
+
+	removeDoc := bson.M{
+		"v":  2,
+		"op": "d",
+		"ns": "throttle.test",
+		"o": bson.M{
+			"_id": toRemoveId,
+		},
+		"b": true,
+	}
+	bytes, err = bson.Marshal(removeDoc)
+	assert.NoError(t, err)
+	buffer.Write(bytes)
+
+	assert.NoError(t, ApplyOps(buffer, 1000, db.Session))
+
+	// Confirm that we have the expected number of docs
+	count, err := db.C("test").Count()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// Check that each individual doc is there
+	var doc bson.M
+	assert.NoError(t, db.C("test").Find(bson.M{"_id": toInsertId}).One(&doc))
+	assert.Equal(t, "insert", doc["key"])
+
+	assert.NoError(t, db.C("test").Find(bson.M{"_id": toUpdateId}).One(&doc))
+	assert.Equal(t, "update2", doc["key"])
+
+	assert.NoError(t, db.C("test").Find(bson.M{"_id": toKeepTheSameId}).One(&doc))
+	assert.Equal(t, "same", doc["key"])
 }
 
 func TestMissingNamespace(t *testing.T) {
