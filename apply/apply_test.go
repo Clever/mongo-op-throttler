@@ -27,7 +27,7 @@ func createInsert(t *testing.T) []byte {
 		"ns": "throttle.test",
 		"o": bson.M{
 			"_id": bson.NewObjectId(),
-			"val": "55d57fd49e8a1b0d007f73b4",
+			"val": bson.NewObjectId(),
 		},
 	}
 	bytes, err := bson.Marshal(doc)
