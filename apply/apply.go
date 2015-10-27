@@ -90,6 +90,10 @@ func applyOp(op operation.Op, session *mgo.Session) error {
 		err := c.UpdateId(id, op.Obj)
 		// Don't error on mgo not found because we want to support idempotency
 		// and the document could have been removed in a previous run
+		// See https://github.com/mongodb/docs/commit/238d6755a74c3c978cc272d318283f726379a43c
+		// for more details. Ideally we would turn this into a upsert, but we can't do that
+		// until we get Mongo 2.6 oplogs (2.4 ones don't have enough of the document to do an
+		// upsert)
 		if err == mgo.ErrNotFound {
 			return nil
 		}
