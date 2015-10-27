@@ -17,7 +17,7 @@ import (
 func main() {
 	mongoURL := flag.String("mongoURL", "localhost", "The mongo database to run the operations against")
 	path := flag.String("path", "", "The path to the json operations to replay")
-	opsPerSecond := flag.Int("speed", 1, "The number of operations to apply per second")
+	opsPerSecond := flag.Float64("speed", 1, "The number of operations to apply per second")
 	flag.Parse()
 
 	session, err := mgo.Dial(*mongoURL)
