@@ -21,7 +21,7 @@ import (
 // Note that applyOps is idempotent so it can be run repeatedly. It does
 // this by doing things like converting inserts into upserts. For more details
 // so the applyOp code.
-func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
+func ApplyOps(r io.Reader, opsPerSecond float64, session *mgo.Session) error {
 	log.Printf("Beginning to replay")
 	opScanner := bsonScanner.New(r)
 
@@ -40,7 +40,7 @@ func ApplyOps(r io.Reader, opsPerSecond int, session *mgo.Session) error {
 		}
 
 		millisElapsed := time.Now().Sub(start).Nanoseconds() / (1000 * 1000)
-		expectedMillisElapsed := (float64(numOps) / float64(opsPerSecond)) * 1000
+		expectedMillisElapsed := (float64(numOps) / opsPerSecond) * 1000
 
 		timeToWait := int64(expectedMillisElapsed) - millisElapsed
 		if timeToWait > 0 {
