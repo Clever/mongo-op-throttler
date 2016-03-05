@@ -1,32 +1,23 @@
+include golang.mk
+.DEFAULT_GOAL := test # override default goal set in library makefile
+
+.PHONY: mocks $(PKG) test testenv build
 SHELL := /bin/bash
 PKG := github.com/Clever/mongo-op-throttler
-SUBPKGS := $(addprefix $(PKG)/, apply convert operation)
-PKGS := $(PKG) $(SUBPKGS)
-GOLINT := $(GOPATH)/bin/golint
-.PHONY: mocks $(PKG) test testenv build
-GOVERSION := $(shell go version | grep 1.5)
-ifeq "$(GOVERSION)" ""
-  $(error must be running Go version 1.5)
-endif
+PKGS := $(shell go list ./... | grep -v /vendor)
+EXECUTABLE := $(basename $(PKG))
+$(eval $(call golang-version-check,1.5))
 
 export MONGO_URL ?= mongodb://localhost:27017/test
-GOVERSION := $(shell go version | grep 1.5)                                     
-ifeq "$(GOVERSION)" ""                                                          
-		$(error must be running Go version 1.5)                                     
-endif 
-export GO15VENDOREXPERIMENT=1
 
-test: $(PKGS)
+all: test build vendor
 
 build:
-	go build
+	go build -o bin/$(EXECUTABLE) $(PKG)
 
-$(GOLINT):
-	go get github.com/golang/lint/golint
+test: $(PKGS)
+$(PKGS): golang-test-all-deps
+	$(call golang-test-all,$@)
 
-$(PKGS): $(GOLINT)
-	gofmt -w=true $(GOPATH)/src/$@/*.go
-	$(GOLINT) $(GOPATH)/src/$@/*.go
-	go vet $(@)
-	go test -v $@
-
+vendor: golang-godep-vendor-deps
+	$(call golang-godep-vendor,$(PKGS))
