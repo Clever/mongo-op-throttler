@@ -5,12 +5,12 @@ include golang.mk
 SHELL := /bin/bash
 PKG := github.com/Clever/mongo-op-throttler
 PKGS := $(shell go list ./... | grep -v /vendor)
-EXECUTABLE := $(basename $(PKG))
+EXECUTABLE := $(shell basename $(PKG))
 $(eval $(call golang-version-check,1.5))
 
 export MONGO_URL ?= mongodb://localhost:27017/test
 
-all: test build vendor
+all: test build
 
 build:
 	go build -o bin/$(EXECUTABLE) $(PKG)
