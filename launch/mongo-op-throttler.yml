@@ -6,7 +6,7 @@ env:
 - AWS_REGION
 resources:
   cpu: 0.25
-  max_mem: 0.05
+  max_mem: 0.1
 dependencies:
 - gearmand
 team: eng-apps
