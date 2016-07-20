@@ -10,7 +10,7 @@ import (
 	"github.com/Clever/mongo-op-throttler/convert"
 	"github.com/Clever/mongo-op-throttler/operation"
 	// Use custom scanner with higher length limitation
-	bsonScanner "github.com/Clever/oplog-replay/bson"
+	bsonScanner "github.com/Clever/mongo-op-throttler/bson"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
