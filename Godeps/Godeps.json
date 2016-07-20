@@ -9,9 +9,8 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/Clever/oplog-replay/bson",
-			"Comment": "d38",
-			"Rev": "338a194f827c51f7fa215b7a0bd9e7357c65df95"
+			"ImportPath": "github.com/Clever/go-utils/scanner",
+			"Rev": "abc25366fa8ee785c21141bd9d6b71efd7c5a619"
 		},
 		{
 			"ImportPath": "github.com/Clever/pathio",
