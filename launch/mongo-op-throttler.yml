@@ -9,4 +9,4 @@ resources:
   max_mem: 0.5
 dependencies:
 - gearmand
-team: eng-apps
+team: eng-secure-sync
