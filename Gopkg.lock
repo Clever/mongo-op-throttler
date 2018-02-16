@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Clever/mongo-op-throttler"
-  packages = ["apply","bson","convert","operation"]
-  revision = "54721984d9e16acb78d6b48694ed85259738ac19"
-
-[[projects]]
   name = "github.com/Clever/pathio"
   packages = ["."]
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
@@ -42,6 +36,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "54b8ae3af9c2a72899f1f4f78829e7ab8ed7ac3d001812ada47ecbbdf886e03a"
+  inputs-digest = "60e2b1c1d7c0b9ced496578da6cfa9df8e7c0a02500306becae446323471b9c9"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -22,10 +22,6 @@
 
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/Clever/mongo-op-throttler"
-
-[[constraint]]
   name = "github.com/Clever/pathio"
 
 [[constraint]]
