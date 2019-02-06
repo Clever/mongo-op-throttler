@@ -11,3 +11,4 @@ aws:
   s3:
     read:
     - oplogs
+  custom: true
