@@ -1,4 +1,4 @@
-FROM debian:wheezy
+FROM debian:stretch
 
 RUN apt-get -y update && apt-get -y install curl
 RUN curl -L https://github.com/Clever/gearcmd/releases/download/0.10.0/gearcmd-v0.10.0-linux-amd64.tar.gz | tar xz -C /usr/local/bin --strip-components 1
